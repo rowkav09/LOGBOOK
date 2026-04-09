@@ -1,101 +1,168 @@
-import Image from "next/image";
+"use client";
+
+import Link from "next/link";
+import GalaxyMap from "@/components/GalaxyMap";
+import dynamic from "next/dynamic";
+
+const CyberpunkMap = dynamic(() => import("@/components/CyberpunkMap"), { ssr: false });
+import { useGameState } from "@/contexts/GameStateProvider";
+import { xpForLevel, getStreakMultiplier } from "@/lib/xp";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const { entries, totalXp, level, currentStreak, longestStreak, characters, displayName, ready, logout } = useGameState();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  if (!ready) return null;
+
+  const today = new Date().toISOString().split("T")[0];
+  const hasWrittenToday = entries.some((e) => e.date === today);
+
+  const nextLevelXp = xpForLevel(level + 1);
+  const currentLevelXp = xpForLevel(level);
+  const progress = nextLevelXp > currentLevelXp
+    ? ((totalXp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100
+    : 0;
+  const multiplier = getStreakMultiplier(currentStreak);
+
+  return (
+    <main className="min-h-screen flex flex-col lg:flex-row">
+      {/* Left: dashboard */}
+      <div className="w-full lg:w-1/2 px-4 py-6 md:p-8 flex flex-col lg:justify-center">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold mb-1 text-text-primary">
+              Log<span className="text-accent">book</span>
+            </h1>
+            <p className="text-text-muted">
+              {displayName ? `Welcome back, ${displayName}.` : "Your life, gamified."}
+            </p>
+          </div>
+          <button
+            onClick={logout}
+            className="border border-border text-text-muted px-3 py-2 text-xs uppercase tracking-wide hover:border-red-500 hover:text-red-500 transition-colors"
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            Log out
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+        {/* Level + XP */}
+        <div className="border border-border bg-surface p-6 mb-4">
+          <div className="flex items-baseline justify-between mb-3">
+            <div>
+              <span className="text-4xl font-bold text-accent">Lv. {level}</span>
+              <span className="text-sm text-text-muted ml-3">{totalXp} XP</span>
+            </div>
+            <span className="text-xs text-text-muted">
+              {nextLevelXp - totalXp} to next
+            </span>
+          </div>
+          <div className="w-full h-2 bg-background">
+            <div
+              className="h-full bg-accent transition-all"
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="border border-border bg-surface p-4">
+            <h2 className="text-xs text-text-muted uppercase tracking-wide">Streak</h2>
+            <p className="text-2xl font-bold text-accent mt-1">{currentStreak}d</p>
+            {multiplier > 1 && (
+              <p className="text-[10px] text-text-muted mt-0.5">{multiplier}x multiplier</p>
+            )}
+          </div>
+          <div className="border border-border bg-surface p-4">
+            <h2 className="text-xs text-text-muted uppercase tracking-wide">Best Streak</h2>
+            <p className="text-2xl font-bold text-text-primary mt-1">{longestStreak}d</p>
+          </div>
+          <div className="hidden md:block border border-border bg-surface p-4">
+            <h2 className="text-xs text-text-muted uppercase tracking-wide">Entries</h2>
+            <p className="text-2xl font-bold text-text-primary mt-1">{entries.length}</p>
+          </div>
+          <div className="hidden md:block border border-border bg-surface p-4">
+            <h2 className="text-xs text-text-muted uppercase tracking-wide">Characters</h2>
+            <p className="text-2xl font-bold text-text-primary mt-1">{characters.length}</p>
+          </div>
+        </div>
+
+        {/* Mobile: big write entry CTA */}
+        <Link
+          href="/journal"
+          className={`md:hidden border p-5 block transition-colors mb-6 ${
+            hasWrittenToday
+              ? "border-border bg-surface hover:border-accent"
+              : "border-accent bg-surface hover:bg-accent/5"
+          }`}
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-text-primary">
+              {hasWrittenToday ? "Today\u2019s Entry" : "Write Today\u2019s Entry"}
+            </h2>
+            <span className={`text-xs font-medium uppercase tracking-wide px-2 py-1 border ${
+              hasWrittenToday
+                ? "border-accent/30 text-accent/60"
+                : "border-accent text-accent"
+            }`}>
+              {hasWrittenToday ? "Done" : "Not written"}
+            </span>
+          </div>
+        </Link>
+
+        {/* Actions — hidden on mobile since bottom nav covers these */}
+        <div className="hidden md:flex flex-col gap-3">
+          <Link
+            href="/journal"
+            className={`border p-5 block transition-colors ${
+              hasWrittenToday
+                ? "border-border bg-surface hover:border-accent"
+                : "border-accent bg-surface hover:bg-accent/5"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-text-primary">
+                {hasWrittenToday ? "Today\u2019s Entry" : "Write Today\u2019s Entry"}
+              </h2>
+              <span className={`text-xs font-medium uppercase tracking-wide px-2 py-1 border ${
+                hasWrittenToday
+                  ? "border-accent/30 text-accent/60"
+                  : "border-accent text-accent"
+              }`}>
+                {hasWrittenToday ? "Done" : "Not written"}
+              </span>
+            </div>
+          </Link>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Link
+              href="/characters"
+              className="border border-border bg-surface p-4 hover:border-accent transition-colors"
+            >
+              <h2 className="text-sm font-semibold text-text-primary">Characters</h2>
+              <p className="text-xs text-text-muted mt-1">People in your story</p>
+            </Link>
+            <Link
+              href="/map"
+              className="border border-border bg-surface p-4 hover:border-accent transition-colors"
+            >
+              <h2 className="text-sm font-semibold text-text-primary">Map</h2>
+              <p className="text-xs text-text-muted mt-1">Explore your area</p>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Right: two quadrants stacked */}
+      <div className="w-full lg:w-1/2 flex flex-col border-t lg:border-t-0 lg:border-l border-border lg:min-h-screen">
+        {/* Top-right: 3D character map */}
+        <div className="h-[35vh] lg:h-1/2 relative">
+          <GalaxyMap />
+        </div>
+        {/* Bottom-right: cyberpunk map — desktop only */}
+        <div className="hidden lg:block h-1/2 relative border-t border-border">
+          <CyberpunkMap />
+        </div>
+      </div>
+    </main>
   );
 }
